@@ -101,7 +101,7 @@ echo "${NUM_FILES} fastq.gz files found"
 echo "Submitting processing script..."
 
 for RAW_FASTQ in "${INDIR}"/*.fastq.gz; do
-	#1,0,processing,,sbatch -p short -c 10 -t 0-06:00 --mem=50G
+	#@1,0,processing,,sbatch -p short -c 10 -t 0-06:00 --mem=50G
 	"${SCRIPT_PATH}/smart3seq_processing_runaspipeline.sh" -i "${RAW_FASTQ}" -o "${OUTDIR}" -t "${TSO_FILE}" -s "${GENOMEDIR}" -g "${GTFFILE}" -b "${BEDFILE}")
 done
 
