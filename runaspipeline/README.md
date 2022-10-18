@@ -15,7 +15,7 @@ cd ${test_dir}
 module load rcbio/1.3.3
 
 # test pipeline builder
-runAsPipeline "${test_dir}/runaspipeline/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out -t${test_dir}/test_data/TSO_barcodes.fasta" "sbatch -p short -t 0-00:10 -c 1" noTmp
+runAsPipeline "${test_dir}/runaspipeline/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out2 -t${test_dir}/test_data/TSO_barcodes.fasta" "sbatch -p short -t 0-00:10 -c 1" noTmp
 
 # run pipeline builder
-runAsPipeline "${test_dir}/runaspipeline/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out -t ${test_dir}/test_data/TSO_barcodes.fasta" "sbatch -p short -t 0-00:10 -c 1" noTmp run
+runAsPipeline "${test_dir}/runaspipeline/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out2 -t ${test_dir}/test_data/TSO_barcodes.fasta" "sbatch -p short -t 0-00:10 -c 1" noTmp run
