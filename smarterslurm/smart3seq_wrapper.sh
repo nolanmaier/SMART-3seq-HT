@@ -7,7 +7,6 @@
 #SBATCH -o smart3seq_wrapper_%j.out		# name the slurm log like this
 #SBATCH --mail-type=FAIL				# send an email on job failure
 
-
 #################################################
 # SMART3SEQ WRAPPER SCRIPT
 # this script captures input from the user and submits additional scripts to process smart3seq data
@@ -34,7 +33,6 @@ Help()
 	echo
 }
 
-
 # get the input options from the command line arguments
 while getopts ":i:o:t:h" flag; do
 	case "${flag}" in
@@ -53,7 +51,6 @@ INDIR=$(realpath "${INDIR}")
 OUTDIR=$(realpath "${OUTDIR}")
 TSO_FILE=$(realpath "${TSO_FILE}")
 
-
 # hardcode location of genome directory (generated previously using STAR genomeGenerate)
 GENOMEDIR='/n/data1/hms/microbiology/jost/lab/genomes/human/gencode/star_index/'
 # hardcode location of downloaded GTF reference file
@@ -61,17 +58,9 @@ GTFFILE='/n/data1/hms/microbiology/jost/lab/genomes/human/gencode/gencode.v38.an
 # hardcode location of downloaded BED reference file
 BEDFILE='/n/data1/hms/microbiology/jost/lab/nolan/test/gencode.v38.annotation2.bed'
 
-
 # find the source of the other scripts we need to run
 # they should be placed in the same directory as this script
-if [ -n "${SLURM_JOB_ID}" ];  then
-	# check the original location through scontrol and $SLURM_JOB_ID
-	SCRIPT_PATH=$(dirname $(realpath $(scontrol show job "${SLURM_JOBID}" | awk -F= '/Command=/{print $2}'| awk '{print $1}')))
-else
-	# otherwise: started with bash. Get the real location. 
-	# NOTE: trying to perform analysis without slurm has not been tested
-	SCRIPT_PATH=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-fi
+SCRIPT_PATH=SCRIPT_PATH='/n/data1/hms/microbiology/jost/lab/nolan/test/smartslurm_test/SMART-3seq-HT/smarterslurm'
 
 
 #################################################
@@ -108,7 +97,6 @@ done
 echo "DONE"
 echo
 
-
 # submit the summary script to run after the processing script finishes
 echo "Submitting summary script..."
 
@@ -119,6 +107,5 @@ echo "DONE"
 echo
 
 echo "smart3seq job submission complete"
-
 
 ##### END OF SCRIPT #####

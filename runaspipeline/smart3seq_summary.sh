@@ -5,6 +5,7 @@
 # this script runs summary tools after all the individual fastq files have been processed
 #################################################
 
+
 #################################################
 # SETUP
 #################################################
@@ -27,7 +28,6 @@ while getopts ":o:g:h" flag; do
 done
 shift "$(($OPTIND -1))"
 
-
 # "SECONDS" is a special bash variable that tracks the time
 SECONDS=0
 
@@ -48,6 +48,7 @@ featureCounts -v
 multiqc --version
 echo
 
+
 #################################################
 # FEATURECOUNTS to summarize reads by gene
 #################################################
@@ -67,6 +68,7 @@ featureCounts -T ${SLURM_CPUS_PER_TASK} -t exon -g gene_id -s 1 -a "${GTFFILE}" 
   -o "${OUTDIR}/featurecounts/genecounts.txt" \
   $(find "${OUTDIR}/deduplicated_bam" -maxdepth 1 -type f -size +0 -name "*.dedup.bam" ! -name "*TSONaN*" ! -name "*Undetermined*")
 echo
+
 
 #################################################
 # MULTIQC to generate aggregate report on pipeline
@@ -184,6 +186,7 @@ EOF
 
 # run multiqc on output directory, overwrite previous reports
 multiqc "${OUTDIR}" -o "${OUTDIR}/multiqc" -c "${CUSTOM_CONFIG}" -f -z --interactive
+
 
 # report the time
 echo

@@ -68,6 +68,7 @@ echo 'This script will process:'
 echo ${RAW_FASTQ}
 echo
 
+
 #################################################
 # CUTADAPT demultiplexing using barcodes file
 #################################################
@@ -136,6 +137,7 @@ echo
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
 echo
 
+
 #################################################
 # CUTADAPT trimming and UMI extraction
 #################################################
@@ -171,6 +173,7 @@ echo
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
 echo
 
+
 #################################################
 # FASTQC on trimmed files
 #################################################
@@ -202,6 +205,7 @@ echo
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
 echo
 
+
 #################################################
 # STAR alignment to genome index
 #################################################
@@ -214,8 +218,8 @@ mkdir -p "${OUTDIR}/aligned_bam"
 STAR --genomeLoad LoadAndExit --genomeDir "${GENOMEDIR}" \
 	--outFileNamePrefix "${OUTDIR}/aligned_bam/LoadGenome_"
 echo
-#
- loop through the trimmed fastq files
+
+# loop through the trimmed fastq files
 for PROCESSED_FASTQ in "${OUTDIR}/trimmed_fastq/${RAW_PREFIX}_"*".trimmed.fastq.gz"; do
 	echo "Aligning using STAR: $(basename ${PROCESSED_FASTQ})"
 	# run STAR aligner
@@ -263,6 +267,7 @@ echo
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
 echo
 
+
 #################################################
 # SAMTOOLS indexing and statistics
 #################################################
@@ -294,6 +299,7 @@ echo
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
 echo
 
+
 #################################################
 # UMI_TOOLS deduplication of bam files
 #################################################
@@ -317,6 +323,7 @@ echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
 echo
+
 
 #################################################
 # SAMTOOLS indexing and statistics of deduplicated files
@@ -349,6 +356,7 @@ echo
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
 echo
 
+
 #################################################
 # RSEQC analysis of deduplicated files
 #################################################
@@ -371,6 +379,7 @@ echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
 echo
+
 
 #################################################
 # Qualimap analysis of deduplicated files
@@ -396,6 +405,5 @@ echo
 SCRIPT_DURATION=$SECONDS
 echo "Script completed at $(date)"
 echo "Total script duration was: $(printf '%02dh:%02dm:%02ds\n' $(($SCRIPT_DURATION/3600)) $(($SCRIPT_DURATION%3600/60)) $(($SCRIPT_DURATION%60)))"
-
 
 ##### END OF SCRIPT #####
