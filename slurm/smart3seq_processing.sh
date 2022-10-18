@@ -22,10 +22,10 @@ while getopts ":i:o:t:s:g:b:h" flag; do
   case "${flag}" in
   	i) INDIR=${OPTARG} ;;
     o) OUTDIR=${OPTARG} ;;
-		t) TSO_FILE=${OPTARG} ;;
-		s) GENOMEDIR=${OPTARG} ;;
+	t) TSO_FILE=${OPTARG} ;;
+	s) GENOMEDIR=${OPTARG} ;;
     g) GTFFILE=${OPTARG} ;;
-		b) BEDFILE=${OPTARG} ;;
+	b) BEDFILE=${OPTARG} ;;
     h) Help; exit ;;
     :) echo "$0: Must supply an argument to -${OPTARG}"; exit 1;;
     \?) echo "Invalid option: -${OPTARG}"; Help; exit 1;;
@@ -284,12 +284,12 @@ echo
 
 # loop through bam files
 for STAR_BAM_FILE in "${OUTDIR}/aligned_bam/${RAW_PREFIX}_"*"_Aligned.sortedByCoord.out.bam"; do
-	echo "Processing bam file: $(basename ${STAR_BAM_FILE})"
+	echo "Processing with Samtools: $(basename ${STAR_BAM_FILE})"
 	# index with samtools (required for deduplication)
-	echo "Indexing using Samtools..."
+	echo "Indexing..."
 	samtools index "${STAR_BAM_FILE}" -@ $((${SLURM_CPUS_PER_TASK}-1))
 	# generate initial qc statistics with samtools stats
-	echo "Generating statistics using Samtools..."
+	echo "Generating statistics..."
 	samtools stats "${STAR_BAM_FILE}" -@ $((${SLURM_CPUS_PER_TASK}-1)) \
 		> "${OUTDIR}/samtools/$(basename ${STAR_BAM_FILE} _Aligned.sortedByCoord.out.bam).stats.aligned.out"
 done
@@ -341,12 +341,12 @@ echo
 
 # loop through deduplicated bam files
 for DEDUP_BAM_FILE in "${OUTDIR}/deduplicated_bam/${RAW_PREFIX}_"*".dedup.bam"; do
-	echo "Processing deduplicated bam file: $(basename ${DEDUP_BAM_FILE})"
+	echo "Processing with Samtools: $(basename ${DEDUP_BAM_FILE})"
 	# index the deduplicated file (required for downstream QC)
-	echo "Indexing using Samtools..."
+	echo "Indexing..."
 	samtools index "${DEDUP_BAM_FILE}" -@ $((${SLURM_CPUS_PER_TASK}-1))
 	# generate qc statistics using samtools
-	echo "Generating statistics using Samtools..."
+	echo "Generating statistics..."
 	samtools stats "${DEDUP_BAM_FILE}" -@ $((${SLURM_CPUS_PER_TASK}-1)) \
 		> "${OUTDIR}/samtools/$(basename ${DEDUP_BAM_FILE} .dedup.bam).stats.dedup.out"
 done

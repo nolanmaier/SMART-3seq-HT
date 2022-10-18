@@ -14,9 +14,7 @@
 # define a function to display help information for the script
 Help()
 {
-  echo "Syntax: smart3seq_processing.sh -i [input directory] -o [output directory] \
-  -t [TSO barcode fasta file] -s [STAR genome index] \
-  -g [gtf reference file] -b [bed reference file]"
+  echo 'Syntax: smart3seq_processing.sh -i [input directory] -o [output directory] -t [TSO barcode fasta file] -s [STAR genome index] -g [gtf reference file] -b [bed reference file]'
 }
 
 # get the input options from the command line arguments
@@ -24,10 +22,10 @@ while getopts ":i:o:t:s:g:b:h" flag; do
   case "${flag}" in
   	i) RAW_FASTQ=${OPTARG} ;;
     o) OUTDIR=${OPTARG} ;;
-		t) TSO_FILE=${OPTARG} ;;
-		s) GENOMEDIR=${OPTARG} ;;
+	t) TSO_FILE=${OPTARG} ;;
+	s) GENOMEDIR=${OPTARG} ;;
     g) GTFFILE=${OPTARG} ;;
-		b) BEDFILE=${OPTARG} ;;
+	b) BEDFILE=${OPTARG} ;;
     h) Help; exit ;;
     :) echo "$0: Must supply an argument to -${OPTARG}"; exit 1;;
     \?) echo "Invalid option: -${OPTARG}"; Help; exit 1;;
@@ -42,7 +40,7 @@ RAW_PREFIX="$(basename ${RAW_FASTQ} .fastq.gz)"
 SECONDS=0
 echo "smart3seq processing script started at $(date)"
 # print out the command submitted to initialize this script
-echo "Command Submitted:"
+echo 'Command Submitted:'
 echo $(scontrol show job "${SLURM_JOBID}" | awk -F= '/Command=/{print $2;exit;}')
 echo
 
@@ -88,7 +86,7 @@ cutadapt --cores="${SLURM_CPUS_PER_TASK}" -g ^file:"${TSO_FILE}" -e 1 --no-indel
 	"${RAW_FASTQ}" \
 	> "${OUTDIR}/demultiplexed_fastq/${RAW_PREFIX}.cutadapt_demulti.log"
 echo "Demultiplexed into" $(ls -1q ${OUTDIR}/demultiplexed_fastq/${RAW_PREFIX}_*.fastq.gz | wc -l) "files"
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
@@ -117,16 +115,16 @@ echo
 mkdir -p "${OUTDIR}/fastqc"
 
 # run fastqc
-echo "Running FastQC on demultiplexed fastq files..."
+echo 'Running FastQC on demultiplexed fastq files...'
 fastqc "${OUTDIR}/demultiplexed_fastq/${RAW_PREFIX}_"*".fastq.gz" \
 	--outdir="${OUTDIR}/fastqc" --noextract --nogroup --quiet --threads "${SLURM_CPUS_PER_TASK}"
 # rename output files
-echo "Renaming FastQC logs..."
+echo 'Renaming FastQC logs...'
 for FASTQC_HTML in "${OUTDIR}/fastqc/${RAW_PREFIX}_"*"_fastqc.html"; do
 	mv "${FASTQC_HTML}" $(echo "${FASTQC_HTML}" | sed 's/_fastqc.html/.raw_fastqc.html/'); done
 for FASTQC_ZIP in "${OUTDIR}/fastqc/${RAW_PREFIX}_"*"_fastqc.zip"; do
 	mv "${FASTQC_ZIP}" $(echo "${FASTQC_ZIP}" | sed 's/_fastqc.zip/.raw_fastqc.zip/'); done
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
@@ -162,7 +160,7 @@ for DEMULTI_FASTQ in "${OUTDIR}/demultiplexed_fastq/${RAW_PREFIX}_"*".fastq.gz";
 	-o "${OUTDIR}/trimmed_fastq/$(basename ${DEMULTI_FASTQ} .fastq.gz).trimmed.fastq.gz" - \
 	> "${OUTDIR}/trimmed_fastq/$(basename ${DEMULTI_FASTQ} .fastq.gz).cutadapt.log"
 done
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
@@ -184,17 +182,17 @@ find "${OUTDIR}/trimmed_fastq" -maxdepth 1 -type f -name "${RAW_PREFIX}_*.trimme
 	else echo ""$(basename $1)" --> VALIDATION: "$(fqtools validate $1)""; \
 	fi' \
 	-- '{}'
-echo "DONE"
+echo 'DONE'
 echo
 
 # make output folder
 mkdir -p "${OUTDIR}/fastqc"
 
 # run fastqc
-echo "Running FastQC on processed fastq files..."
+echo 'Running FastQC on processed fastq files...'
 fastqc "${OUTDIR}/trimmed_fastq/${RAW_PREFIX}_"*".trimmed.fastq.gz" \
 	 --outdir="${OUTDIR}/fastqc" --noextract --nogroup --quiet --threads "${SLURM_CPUS_PER_TASK}"
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
@@ -245,18 +243,18 @@ for STAR_BAM_FILE in ${OUTDIR}/aligned_bam/${RAW_PREFIX}_*_Aligned.sortedByCoord
 	if [[ $(tail -1 "${STAR_BAM_FILE%Aligned.sortedByCoord.out.bam}Log.out") == "ALL DONE!" ]]; then
 		echo "Alignment completed for: $(basename ${STAR_BAM_FILE})"
 		# delete matching empty temporary directories recursively (STAR is not good about cleaning up)
-		echo "Cleaning up empty temporary directories..."
+		echo 'Cleaning up empty temporary directories...'
 		find "${STAR_BAM_FILE%Aligned.sortedByCoord.out.bam}_STARtmp" -type d -empty -delete
 		# check second to last line of log to check if empty (STAR will output a .bam file even if no reads align)
 		if [[ $(tail -2 "${STAR_BAM_FILE%Aligned.sortedByCoord.out.bam}Log.out" | head -1) \
 			== "WARNING: nothing to sort - no output alignments" ]]; then
 			# delete the empty .bam file
-			echo "bam file is empty, removing..."
+			echo 'bam file is empty, removing...'
 			rm "${STAR_BAM_FILE}"
 		fi
 	fi
 done
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
@@ -272,23 +270,23 @@ SECTION_START="${SECONDS}"
 mkdir -p "${OUTDIR}/samtools"
 
 # validate remaining output files with samtools
-echo "Validating bam files..."
+echo 'Validating bam files...'
 samtools quickcheck -v "${OUTDIR}/aligned_bam/${RAW_PREFIX}_"*"_Aligned.sortedByCoord.out.bam"
-echo "DONE"
+echo 'DONE'
 echo
 
 # loop through bam files
 for STAR_BAM_FILE in "${OUTDIR}/aligned_bam/${RAW_PREFIX}_"*"_Aligned.sortedByCoord.out.bam"; do
-	echo "Processing bam file: $(basename ${STAR_BAM_FILE})"
+	echo "Processing with Samtools: $(basename ${STAR_BAM_FILE})"
 	# index with samtools (required for deduplication)
-	echo "Indexing using Samtools..."
+	echo "Indexing..."
 	samtools index "${STAR_BAM_FILE}" -@ $((${SLURM_CPUS_PER_TASK}-1))
 	# generate initial qc statistics with samtools stats
-	echo "Generating statistics using Samtools..."
+	echo "Generating statistics..."
 	samtools stats "${STAR_BAM_FILE}" -@ $((${SLURM_CPUS_PER_TASK}-1)) \
 		> "${OUTDIR}/samtools/$(basename ${STAR_BAM_FILE} _Aligned.sortedByCoord.out.bam).stats.aligned.out"
 done
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
@@ -313,7 +311,7 @@ find "${OUTDIR}/aligned_bam" -maxdepth 1 -type f -name "${RAW_PREFIX}_*_Aligned.
 	--output-stats=""$2"/deduplicated_bam/"$(basename $1 _Aligned.sortedByCoord.out.bam)"" \
 	> ""$2"/deduplicated_bam/"$(basename $1 _Aligned.sortedByCoord.out.bam)".dedup.bam"' \
 	-- '{}' "${OUTDIR}"
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
@@ -329,23 +327,23 @@ SECTION_START="${SECONDS}"
 mkdir -p "${OUTDIR}/samtools"
 
 # validate remaining output files with samtools
-echo "Validating deduplicated bam files..."
+echo 'Validating deduplicated bam files...'
 samtools quickcheck -v "${OUTDIR}/deduplicated_bam/${RAW_PREFIX}_"*".dedup.bam"
-echo "DONE"
+echo 'DONE'
 echo
 
 # loop through deduplicated bam files
 for DEDUP_BAM_FILE in "${OUTDIR}/deduplicated_bam/${RAW_PREFIX}_"*".dedup.bam"; do
-	echo "Processing deduplicated bam file: $(basename ${DEDUP_BAM_FILE})"
+	echo "Processing with Samtools: $(basename ${DEDUP_BAM_FILE})"
 	# index the deduplicated file (required for downstream QC)
-	echo "Indexing using Samtools..."
+	echo "Indexing..."
 	samtools index "${DEDUP_BAM_FILE}" -@ $((${SLURM_CPUS_PER_TASK}-1))
 	# generate qc statistics using samtools
-	echo "Generating statistics using Samtools..."
+	echo "Generating statistics..."
 	samtools stats "${DEDUP_BAM_FILE}" -@ $((${SLURM_CPUS_PER_TASK}-1)) \
 		> "${OUTDIR}/samtools/$(basename ${DEDUP_BAM_FILE} .dedup.bam).stats.dedup.out"
 done
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
@@ -369,7 +367,7 @@ find "${OUTDIR}/deduplicated_bam" -maxdepth 1 -type f -name "${RAW_PREFIX}_*.ded
 	""$2"/infer_experiment.py" -i "$1" -r "$3" > ""$4"/rseqc/"$(basename $1 .bam)".inferExperiment.txt" 2> /dev/null; \
 	""$2"/read_distribution.py" -i "$1" -r "$3" > ""$4"/rseqc/"$(basename $1 .bam)".readDistribution.txt" 2> /dev/null' \
 	-- '{}' "${RSEQC_SCRIPTS}" "${BEDFILE}" "${OUTDIR}"
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
@@ -389,7 +387,7 @@ find "${OUTDIR}/deduplicated_bam" -maxdepth 1 -type f -name "${RAW_PREFIX}_*.ded
 	'echo "Running Qualimap on: "$(basename $1)""; \
 	qualimap rnaseq --java-mem-size=12G -bam "$1" -gtf "$2" -outdir ""$3"/qualimap/"$(basename $1 .dedup.bam)"_dedup" > "/dev/null"' \
 	-- '{}' "${GTFFILE}" "${OUTDIR}"
-echo "DONE"
+echo 'DONE'
 echo
 
 echo "Section finished in "$((${SECONDS}-${SECTION_START}))" seconds"
