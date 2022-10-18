@@ -15,7 +15,7 @@ cd ${test_dir}
 export PATH=${test_dir}/smarterSlurm-0.1/bin
 
 # test pipeline builder
-runAsPipeline "${test_dir}/runaspipeline/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out3 -t${test_dir}/test_data/TSO_barcodes.fasta" "sbatch -p short -t 0-00:10 -c 1" noTmp
+runAsPipeline "${test_dir}/smarterslurm/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out3 -t${test_dir}/test_data/TSO_barcodes.fasta" "sbatch -p short -t 0-00:10 -c 1" noTmp
 
 # run pipeline builder
-runAsPipeline "${test_dir}/runaspipeline/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out3 -t ${test_dir}/test_data/TSO_barcodes.fasta" "sbatch -p short -t 0-00:10 -c 1" noTmp run 2>&1 | tee output`date +\%Y_\%m_\%d_\%H:\%M`.log
+runAsPipeline "${test_dir}/smarterslurm/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out3 -t ${test_dir}/test_data/TSO_barcodes.fasta" "sbatch -p short -t 0-00:10 -c 1" noTmp run 2>&1 | tee output`date +\%Y_\%m_\%d_\%H:\%M`.log

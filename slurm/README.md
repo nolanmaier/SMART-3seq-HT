@@ -12,4 +12,4 @@ cd ${test_dir}
 # copy scripts folder and data folder to directory
 
 # run script
-sbatch ${test_dir}/slurm/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out -t ${test_dir}/test_data/TSO_barcodes.fasta 2>&1 | tee output`date +\%Y_\%m_\%d_\%H:\%M`.log
+sbatch ${test_dir}/slurm/smart3seq_wrapper.sh -i ${test_dir}/test_data -o ${test_dir}/out -t ${test_dir}/test_data/TSO_barcodes.fasta
