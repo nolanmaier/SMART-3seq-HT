@@ -10,6 +10,10 @@
 # SETUP
 #################################################
 
+# tell bash to exit immediately if something in the code fails
+set -e
+set -o pipefail
+
 # define a function to display help information for the script
 Help()
 {
@@ -19,8 +23,8 @@ Help()
 # get the input options from the command line arguments
 while getopts ":o:g:h" flag; do
   case "${flag}" in
-    o) OUTDIR=${OPTARG} ;;
-    g) GTFFILE=${OPTARG} ;;
+    o) outdir=${OPTARG} ;;
+    g) gtffile=${OPTARG} ;;
     h) Help; exit ;;
     :) echo "$0: Must supply an argument to -${OPTARG}"; exit 1;;
     \?) echo "Invalid option: -${OPTARG}"; Help; exit 1 ;;
@@ -38,6 +42,8 @@ echo 'Command Submitted:'
 echo $(scontrol show job "${SLURM_JOBID}" | awk -F= '/Command=/{print $2;exit;}')
 echo
 
+cores_avail="${SLURM_CPUS_PER_TASK}"
+
 # load biogrids module to access analysis software
 # tools used: featurecounts, multiQC
 module load biogrids/latest
@@ -53,34 +59,37 @@ echo
 #################################################
 # FEATURECOUNTS to summarize reads by gene
 #################################################
+section_start="${SECONDS}"
 
 # make output folder
-mkdir -p "${OUTDIR}/featurecounts"
+mkdir -p "${outdir}/featurecounts"
 
 echo 'Summarizing genecounts from:'
-echo "${OUTDIR}/deduplicated_bam"
+echo "${outdir}/deduplicated_bam"
 echo
 
 # run featurecounts to summarize exon counts for each gene
 # note that "exon" encompasses 5'UTR, CDS, and 3' UTR
 # read must match the correct strand of the genefin
 # will use all deduplicated bam files (discard those with no reads and those without indices)
-featureCounts -T ${SLURM_CPUS_PER_TASK} -t exon -g gene_id -s 1 -a "${GTFFILE}" \
-  -o "${OUTDIR}/featurecounts/genecounts.txt" \
-  $(find "${OUTDIR}/deduplicated_bam" -maxdepth 1 -type f -size +0 -name "*.dedup.bam" ! -name "*TSONaN*" ! -name "*Undetermined*")
+featureCounts -T "${cores_avail}" -t 'exon' -g 'gene_id' -s 1 -a "${gtffile}" \
+  -o "${outdir}/featurecounts/genecounts.tsv" \
+  $(find "${outdir}/deduplicated_bam" -maxdepth 1 -type f -size +0 -name "*.dedup.bam" ! -name "*TSONaN*" ! -name "*Undetermined*")
+echo "featureCounts finished in "$((${SECONDS}-${section_start}))" seconds"
 echo
-
 
 #################################################
 # MULTIQC to generate aggregate report on pipeline
 #################################################
+section_start="${SECONDS}"
 
 # make output folder
-mkdir -p "${OUTDIR}/multiqc"
+mkdir -p "${outdir}/multiqc"
 
 # make custom multiqc config file
-CUSTOM_CONFIG="${OUTDIR}/multiqc/multiqc_config.yaml"
-cat >"${CUSTOM_CONFIG}" <<'EOF'
+custom_config="${outdir}/multiqc/multiqc_config.yaml"
+echo "Writing custom MultiQC config file to: ${custom_config}"
+cat >"${custom_config}" <<'EOF'
 fn_ignore_files:
   - "LoadGenome*"
   - "RemoveGenome*"
@@ -89,6 +98,14 @@ fn_ignore_files:
 sample_names_ignore:
   - "*TSONaN*"
   - "*Undetermined*"
+run_modules:
+  - cutadapt
+  - fastqc
+  - star
+  - umitools
+  - rseqc
+  - qualimap
+  - featureCounts
 module_order:
   - cutadapt:
       name: "Cutadapt (demultiplexing)"
@@ -97,13 +114,6 @@ module_order:
       target: ""
       path_filters:
         - "*.cutadapt_demulti.log"
-  - fastqc:
-      name: "FastQC (raw)"
-      anchor: "fastqc_raw"
-      info: "This section of the report shows FastQC results before trimming."
-      target: ""
-      path_filters:
-        - "*.raw_fastqc.zip"
   - cutadapt:
       name: "Cutadapt (trimming)"
       anchor: "cutadapt_trimming"
@@ -111,88 +121,85 @@ module_order:
       target: ""
       path_filters:
         - "*.cutadapt.log"
-  - fastqc:
-      name: "FastQC (trimmed)"
-      anchor: "fastqc_trimmed"
-      info: "This section of the report shows FastQC results after trimming."
-      target: ""
-      path_filters:
-        - "*.trimmed_fastqc.zip"
+  - fastqc
   - star
-  - samtools:
-      name: "Samtools (aligned)"
-      anchor: "samtools_aligned"
-      info: "This section of the report shows samtools statistics before deduplication"
-      target: ""
-      path_filters:
-        - "*.stats.aligned.out"
-  - samtools:
-      name: "Samtools (dedup)"
-      anchor: "samtools_dedup"
-      info: "This section of the report shows samtools statistics after deduplication"
-      target: ""
-      path_filters:
-        - "*.stats.dedup.out"
+  - umitools
   - rseqc
   - qualimap
   - featureCounts
+sp:
+  cutadapt:
+    fn: '*.cutadapt*.log'
+  umitools:
+    fn: '*.umitools.log'
+  rseqc/bam_stat:
+    fn: '*.bamStat.txt'
+    max_filesize: 500000
+  rseqc/gene_body_coverage:
+    skip: true
+  rseqc/inner_distance:
+    skip: true
+  rseqc/junction_annotation:
+    skip: true
+  rseqc/junction_saturation:
+    skip: true
+  rseqc/read_gc:
+    skip: true
+  rseqc/read_distribution:
+    fn: '*.readDistribution.txt'
+    max_filesize: 500000
+  rseqc/read_duplication_pos:
+    skip: true
+  rseqc/infer_experiment:
+    fn: '*.inferExperiment.txt'
+    max_filesize: 500000
+  rseqc/tin:
+    skip: true
 remove_sections:
   - cutadapt_demultiplexing_cutadapt_trimmed_sequences
 table_columns_visible:
   Cutadapt (demultiplexing):
     percent_trimmed: False
-  Samtools (aligned):
-    error_rate: False
-    reads_mapped_percent: False
-    raw_total_sequences: False
-    non-primary_alignments: False
-    reads_mapped: False
-  Samtools (dedup):
-    error_rate: False
-    reads_mapped_percent: False
-    raw_total_sequences: False
-    non-primary_alignments: False
-    reads_mapped: False
-  FastQC (raw):
+  FastQC:
+    avg_sequence_length: False
     percent_duplicates: False
-    percent_gc: False
-  FastQC (trimmed):
-    avg_sequence_length: True
-    percent_duplicates: False
+    median_sequence_length: True
   QualiMap:
     reads_aligned: False
 table_columns_placement:
-  FastQC (raw):
-    total_sequences: 100
   Cutadapt (trimming):
     percent_trimmed: 200
-  FastQC (trimmed):
+  FastQC:
     total_sequences: 300
-    avg_sequence_length: 310
+    median_sequence_length: 310
     percent_gc: 320
   STAR:
     uniquely_mapped: 400
     uniquely_mapped_percent: 410
+  UMI-tools:
+    output_reads: 500
+    percent_passing_dedup: 510
   featureCounts:
-    Assigned: 500
-    percent_assigned: 510
+    Assigned: 600
+    percent_assigned: 610
   QualiMap:
-    5_3_bias: 600
-table_columns_name:
-  FastQC (raw):
-    total_sequences: "Raw Reads"
-  FastQC (trimmed):
-    total_sequences: "Trimmed Reads"
+    5_3_bias: 700
+custom_plot_config:
+  cutadapt_filtered_reads_plot:
+    cpswitch_c_active: False
 EOF
+echo
 
 # run multiqc on output directory, overwrite previous reports
-multiqc "${OUTDIR}" -o "${OUTDIR}/multiqc" -c "${CUSTOM_CONFIG}" -f -z --interactive
+multiqc "${outdir}" -o "${outdir}/multiqc" -c "${custom_config}" -f -z
+echo
+echo "MultiQC finished in "$((${SECONDS}-${section_start}))" seconds"
+echo
 
 
 # report the time
-echo
-SCRIPT_DURATION=$SECONDS
+script_duration=$SECONDS
 echo "Script completed at $(date)"
-echo "Total script duration was: $(printf '%02dh:%02dm:%02ds\n' $(($SCRIPT_DURATION/3600)) $(($SCRIPT_DURATION%3600/60)) $(($SCRIPT_DURATION%60)))"
+echo "Total script duration was: $(printf '%02dh:%02dm:%02ds\n' $(($script_duration/3600)) $(($script_duration%3600/60)) $(($script_duration%60)))"
 
 ##### END OF SCRIPT #####
