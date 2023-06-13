@@ -60,7 +60,7 @@ for entry in data:
         outfile.write(f">TSO{format(entry[1], '02')}_OFF{entry[2]}\n{entry[3]}\n")
 
 # count the barcodes in each fasta file
-output_file_list = glob.glob(str(outdir / 'dT*_barcodes.fasta'))
+output_file_list = sorted(glob.glob(str(outdir / 'dT*_barcodes.fasta')))
 print(f"{len(output_file_list)} fasta files written")
 for f in output_file_list:
     f_path = Path(f)
