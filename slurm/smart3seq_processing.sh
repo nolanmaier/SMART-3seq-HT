@@ -134,13 +134,15 @@ for demulti_fastq in "${outdir}/demultiplexed_fastq/${raw_prefix}_"*".fastq.gz";
 	# cutadapt runs multiple times on the same file:
 	# 1. trim offset (no logs or intermediate files are kept)
 	# 2. trim UMI and append UMI sequence to read name (no logs or intermediate files are kept)
-	# 3a. trim 13 bases from the 5' end (corresponding to the TSO constant sequence) trim
-	# 3b. any low qulity bases from the 3' end (assuming two-color chemistry)
+	# 3a. trim 13 bases from the 5' end (corresponding to the TSO constant sequence)
+	# 3b. trim any low qulity bases from the 3' end (assuming two-color chemistry)
 	# 3c. trim any remaining N bases from either end
 	# Finally output a new fastq file and a log file, only keep reads with at least 1bp
 	cutadapt --cores="${cores_avail}" --quiet --cut "${offset}" "${demulti_fastq}" | \
 	cutadapt --cores="${cores_avail}" --quiet --cut 5 --rename '{id}_{cut_prefix} {comment}' - | \
-	cutadapt --cores="${cores_avail}" --cut 13 --nextseq-trim 15 --trim-n --minimum-length 1\
+	cutadapt --cores="${cores_avail}" --cut 13 --nextseq-trim 15 --adapter "illumina=AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC;min_overlap=5" \
+	2> "${outdir}/trimmed_fastq/$(basename ${demulti_fastq} .fastq.gz).cutadapt_illumina.log" - | \
+	cutadapt --cores="${cores_avail}" --adapter "poly_a=A{100};min_overlap=5" --trim-n --minimum-length 1 \
 	-o "${outdir}/trimmed_fastq/$(basename ${demulti_fastq} .fastq.gz).trimmed.fastq.gz" - \
 	> "${outdir}/trimmed_fastq/$(basename ${demulti_fastq} .fastq.gz).cutadapt.log"
 
