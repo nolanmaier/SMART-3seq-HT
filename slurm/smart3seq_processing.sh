@@ -44,14 +44,14 @@ echo "smart3seq processing script started at $(date)"
 echo 'Command Submitted:'
 echo $(scontrol show job "${SLURM_JOBID}" | awk -F= '/Command=/{print $2;exit;}')
 echo
+echo "Job ${SLURM_JOBID} Running on ${SLURMD_NODENAME}"
+echo
 
 cores_avail="${SLURM_CPUS_PER_TASK}"
 
 # load biogrids module to access analysis software
-# tools used: fqtools, cutadapt, fastqc, STAR, samtools, umi_tools, rseqc, qualimap
+# tools used: cutadapt, fastqc, STAR, samtools, umi_tools, rseqc, qualimap
 module load biogrids/latest
-# harcode the location of the RSeQC scripts from the biogrids install
-rseqc_scripts='/programs/x86_64-linux/rseqc/4.0.0/bin.capsules'
 echo
 
 # print versions of software used for documentation
@@ -61,7 +61,7 @@ fastqc -v
 echo "STAR version: $(STAR --version)"
 samtools --version | head -n 1
 umi_tools -v
-echo "RSEQC version: $(${rseqc_scripts}/bam_stat.py --version) $(${rseqc_scripts}/infer_experiment.py --version) $(${rseqc_scripts}/read_distribution.py --version)"
+echo "RSEQC version: $(bam_stat.py --version) $(infer_experiment.py --version) $(read_distribution.py --version)"
 qualimap --help 2> '/dev/null' | sed -n '/^QualiMap/p'
 echo
 
@@ -94,9 +94,13 @@ sample_number="${BASH_REMATCH[0]}"
 tso_file="${tso_path}/${sample_number}_barcodes.fasta"
 echo "Using barcode file: $(basename ${tso_file})"
 
-# run cutadapt demultiplexing
+# demultiplex the fastq file with cutadapt
+# match the 5' nucleotides with the barcode file allowing 1 error (no indels)
+# append the barcode sequence to the read header
+# output the read to the appropriately demultiplexed fastq file 
 echo "Demultiplexing: $(basename ${raw_fastq})"
 cutadapt --cores="${cores_avail}" -g ^file:"${tso_file}" -e 1 --no-indels \
+	--rename '{header}:{match_sequence}' \
 	--untrimmed-output "${outdir}/demultiplexed_fastq/${raw_prefix}_TSONaN_OFF0.fastq.gz" \
 	-o "${outdir}/demultiplexed_fastq/${raw_prefix}_{name}.fastq.gz" \
 	"${raw_fastq}" \
@@ -140,9 +144,9 @@ for demulti_fastq in "${outdir}/demultiplexed_fastq/${raw_prefix}_"*".fastq.gz";
 	# Finally output a new fastq file and a log file, only keep reads with at least 1bp
 	cutadapt --cores="${cores_avail}" --quiet --cut "${offset}" "${demulti_fastq}" | \
 	cutadapt --cores="${cores_avail}" --quiet --cut 5 --rename '{id}_{cut_prefix} {comment}' - | \
-	cutadapt --cores="${cores_avail}" --cut 13 --nextseq-trim 15 --adapter "illumina=AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC;min_overlap=5" \
+	cutadapt --cores="${cores_avail}" --cut 13 --nextseq-trim 15 --adapter 'illumina=AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC;min_overlap=5' \
 	2> "${outdir}/trimmed_fastq/$(basename ${demulti_fastq} .fastq.gz).cutadapt_illumina.log" - | \
-	cutadapt --cores="${cores_avail}" --adapter "poly_a=A{100};min_overlap=5" --trim-n --minimum-length 1 \
+	cutadapt --cores="${cores_avail}" --poly-a --trim-n --minimum-length 10 \
 	-o "${outdir}/trimmed_fastq/$(basename ${demulti_fastq} .fastq.gz).trimmed.fastq.gz" - \
 	> "${outdir}/trimmed_fastq/$(basename ${demulti_fastq} .fastq.gz).cutadapt.log"
 
@@ -211,8 +215,10 @@ for processed_fastq in "${outdir}/trimmed_fastq/${raw_prefix}_"*".trimmed.fastq.
 done
 
 # unload the STAR genome index
+# sometimes this fails if the node is running multiple versions of the script, ignore any raised errors
 STAR --genomeLoad Remove --genomeDir "${genomedir}" \
-	--outFileNamePrefix "${outdir}/aligned_bam/RemoveGenome_"
+	--outFileNamePrefix "${outdir}/aligned_bam/RemoveGenome_" \
+	|| true
 echo
 
 # once finished aligning, loop through output files to cleanup
@@ -322,13 +328,14 @@ mkdir -p "${outdir}/rseqc"
 
 # run RSEQC scripts to generate statistics of the deduplicated files
 # uses xargs -P to run multiple parallel processes and reduce runtime
+# ignore any raised errors as they are not essential to the script
 find "${outdir}/deduplicated_bam" -maxdepth 1 -type f -name "${raw_prefix}_*.dedup.bam" -print0 | \
 	xargs -0 -I '{}' -P "${cores_avail}" bash -c \
 	'echo "Running RSEQC scripts on: "$(basename $1)""; \
-	""$2"/bam_stat.py" -i "$1" > ""$4"/rseqc/"$(basename $1 .bam)".bamStat.txt" 2> /dev/null; \
-	""$2"/infer_experiment.py" -i "$1" -r "$3" > ""$4"/rseqc/"$(basename $1 .bam)".inferExperiment.txt" 2> /dev/null; \
-	""$2"/read_distribution.py" -i "$1" -r "$3" > ""$4"/rseqc/"$(basename $1 .bam)".readDistribution.txt" 2> /dev/null' \
-	-- '{}' "${rseqc_scripts}" "${bedfile}" "${outdir}"
+	"bam_stat.py" -i "$1" > ""$3"/rseqc/"$(basename $1 .bam)".bamStat.txt" 2> /dev/null; \
+	"infer_experiment.py" -i "$1" -r "$2" > ""$3"/rseqc/"$(basename $1 .bam)".inferExperiment.txt" 2> /dev/null; \
+	"read_distribution.py" -i "$1" -r "$2" > ""$3"/rseqc/"$(basename $1 .bam)".readDistribution.txt" 2> /dev/null' \
+	-- '{}' "${bedfile}" "${outdir}" || true
 echo 'DONE'
 echo
 
@@ -344,11 +351,12 @@ section_start="${SECONDS}"
 # run Qualimap to generate statistics of the deduplicated files
 # uses xargs -P to run multiple parallel processes and reduce runtime
 # make sure that the (--java-mem-size) multiplied by the number of processes (-P) does not exceed available memory
+# ignore any raised errors as they are not essential to the script
 find "${outdir}/deduplicated_bam" -maxdepth 1 -type f -name "${raw_prefix}_*.dedup.bam" -print0 | \
 	xargs -0 -I '{}' -P 4 bash -c \
 	'echo "Running Qualimap on: "$(basename $1)""; \
 	qualimap rnaseq --java-mem-size=12G -bam "$1" -gtf "$2" -outdir ""$3"/qualimap/"$(basename $1 .dedup.bam)"_dedup" > "/dev/null" 2>&1' \
-	-- '{}' "${gtffile}" "${outdir}"
+	-- '{}' "${gtffile}" "${outdir}" || true
 echo 'DONE'
 echo
 
