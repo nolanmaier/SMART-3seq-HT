@@ -3,7 +3,7 @@
 ''' 
 To demultiplex SMART-3Seqv2 data, we need a fasta file containing relevant TSO barcodes for each dT barcode
 This python script reads a csv file containing sample information and outputs the fasta files
-The csv file must have the following columns:
+The csv file must have the following columns (case-sensitive):
 	dT_Index
 	TSO_Index
 	TSO_Offset
@@ -15,15 +15,18 @@ python3 barcode2fasta.py sample_info.csv output_directory
 '''
 
 # import modules
-import os, sys, csv, shutil, glob
+import os, platform, sys, csv, shutil, glob
 from pathlib import Path
 
+print(f"running {__file__}")
+print(f"using python version: {platform.python_version()}")
+
 # read sample list from path given at command line
-sample_csv = Path(sys.argv[1])
-print(f"reading sample information from \t{sample_csv}")
+sample_csv = Path.cwd() / sys.argv[1]
+print(f"reading sample information from {sample_csv}")
 
 # make a folder to store the output fasta files
-outdir = Path(sys.argv[2])
+outdir = Path.cwd() / sys.argv[2]
 # remove the directory and its contents if it already exists to avoid appending to an existing file
 try:
     shutil.rmtree(outdir)
@@ -31,7 +34,7 @@ except FileNotFoundError:
     pass
 # make the empty output directory
 os.makedirs(outdir)
-print(f"exporting .fasta files to \t{outdir}")
+print(f"exporting .fasta files to {outdir}")
 
 # initialize empty lists to hold the data
 dT_Index = []
@@ -56,7 +59,7 @@ print(f"{sample_count} samples found")
 # append each entry to the appropriate fasta file
 for entry in data:
     outname = outdir / f"dT{format(entry[0], '02')}_barcodes.fasta"
-    with open(outname, 'a') as outfile:
+    with open(outname, mode='a') as outfile:
         outfile.write(f">TSO{format(entry[1], '02')}_OFF{entry[2]}\n{entry[3]}\n")
 
 # count the barcodes in each fasta file
@@ -69,3 +72,5 @@ for f in output_file_list:
         if remainder != 0:
             raise AssertionError(f"wrong number of lines detected in {f_path.name}")
         print(f"{barcode_count} barcodes in {f_path.name}")
+
+print("DONE")

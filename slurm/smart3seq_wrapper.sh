@@ -58,9 +58,6 @@ indir=$(realpath "${indir}")
 outdir=$(realpath "${outdir}")
 tso_samplesheet=$(realpath "${tso_samplesheet}")
 
-# find the path to the output TSO barcodes fasta files
-tso_barcodes="${outdir}/TSO_barcodes"
-
 # hardcode location of genome directory (generated previously using STAR genomeGenerate)
 genomdir='/n/data1/hms/microbiology/jost/lab/genomes/human/gencode/star_index/'
 # hardcode location of downloaded GTF reference file
@@ -75,6 +72,7 @@ script_path=$(dirname $(realpath $(scontrol show job "${SLURM_JOBID}" | awk -F= 
 # load the biogrids module
 # this script only needs a python3 install so biogrids is not truly necessary
 # but biogrids does come with python installed
+module purge
 module load biogrids/latest
 echo
 
@@ -85,7 +83,6 @@ echo
 echo "Submitting smart3seq analysis job at $(date)"
 echo
 echo -e "Analyzing fastq.gz files in: \t ${indir}"
-echo -e "Processed files will be placed in: \t ${outdir}"
 echo -e "Demultiplexing using barcodes in: \t ${tso_samplesheet}"
 echo -e "Aligning using genome directory in: \t ${genomdir}"
 echo -e "Using GTF file in: \t ${gtffile}"
@@ -93,17 +90,19 @@ echo -e "Using BED file in: \t ${bedfile}"
 echo -e "Using scripts located in: \t ${script_path}"
 echo
 
-# use the python script to convert the .csv sample sheet into .fasta files of TSO barcodes
-echo 'generating fasta files for TSO barcodes'
-echo -e "using python installed at: \t $(which python3)"
-echo "$(python3 --version)"
-python3 "${script_path}/barcode2fasta.py" "${tso_samplesheet}" "${tso_barcodes}"
-echo 'fasta file generation completed'
-echo
-
-
 # make a directory to store the slurm logs
 mkdir -p "${outdir}/slurmlogs"
+echo -e "Processed files will be sent to: \t ${outdir}"
+echo -e "Log files will be sent to: \t ${outdir}/slurmlogs"
+echo
+
+# find the path to output the TSO barcodes fasta files
+tso_barcodes="${outdir}/TSO_barcodes"
+# use the python script to convert the .csv sample sheet into .fasta files of TSO barcodes
+echo 'Generating fasta files for TSO barcodes'
+python3 "${script_path}/barcode2fasta.py" "${tso_samplesheet}" "${tso_barcodes}" > "${outdir}/slurmlogs/barcode2fasta.log"
+echo 'Fasta file generation completed'
+echo
 
 # count the number of input fastq files
 num_files=$(find "${indir}" -maxdepth 1 -type f -size +0 -name '*dT*.fastq.gz' -print0 | grep -zc .)
