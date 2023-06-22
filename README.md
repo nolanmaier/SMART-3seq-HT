@@ -1,62 +1,69 @@
 # SMART-3seq-HT
 This repository contains scripts to demultiplex and analyze SMART-3seq-HT sequencing reads.
 
-### Quick-Start Guide (TL:DR version)
+### Quick-Start Guide (TL;DR version)
 1. clone this repo to your folder: `git clone https://github.com/nolanmaier/SMART-3seq-HT`
 2. make a sample demultiplexing *.csv* file and upload it to your folder
 3. run the wrapper script using slurm: `sbatch SMART-3seq-HT/smart3seq_wrapper.sh -i path/to/input_fastq_dir -o path/to/output_dir -t sample_demultiplexing.csv`
 
+
 ### Requirements
 This repository is designed and tested for use on the Harvard Medical School [O2 computing cluster](https://harvardmed.atlassian.net/wiki/spaces/O2/overview). 
 
-As written, it minimally requires a [SLURM](https://slurm.schedmd.com/documentation.html) job scheduler and a [BioGrids](https://biogrids.org/) software stack available as a module.
+As written, it minimally requires a [SLURM](https://slurm.schedmd.com/documentation.html) job scheduler and a [BioGrids](https://biogrids.org/) software stack available as a module. You can check if these are available by running the following commands: `sbatch -V` and `module load biogrids/latest`
 
-Additionally, the 
 
 ### Inputs
-The pipeline takes as input three 
+The wrapper script takes three named inputs:
+
+`-i` the directory containing the input *.fastq.gz* files. The filenames must match the pattern: `*dT[0-9][0-9]*.fastq.gz` where the two-digit number following *dT* should match the **dT_Index** in the sample demultiplexing *.csv* (see below). The following are valid example filenames: *dT03.fastq.gz*, 	*LIB056_S1_dT12.fastq.gz*, *dT20TRA00243971.fastq.gz*
+
+`-o` the directory where the output files should be generated
+
+`-t` the sample demultiplexing *.csv* file (see below)
+
 
 ### Sample Demultiplexing CSV
 The pipeline requires a comma separated file containing all samples and their associated oligo-dT and TSO barcodes. Reference the example in the repository. I have not yet found a good way to generate this *.csv* file programatically. So I just do it by hand. 😓
 
-The minimum columns required are: **dT_Index**, **TSO_Index**, **TSO_Offset**, **TSO_Sequence** (the column names must match exactly).
+The minimum columns required are below (the column names must match exactly): 
+- **dT_Index**
+- **TSO_Index**
+- **TSO_Offset**
+- **TSO_Sequence**
 
 I usually include extra columns (that are not parsed by the pipeline) describing the samples (i.e treatment names, treatment concentrations, etc) so that I can use this same *.csv* file during data analysis to decode the samples into treatments and controls. It is important to **NOT** use commas within fields in your *.csv* or the *.csv* will not be read correctly. If you must use commas (such as for sample names) enclose the entire field in double quotes e.g.:	✅ "3,4-hexanediol"	❌ 3,4-hexanediol.
 
-NM011_sampledecode.csv
-Login to the HMS O2 HPC cluster if have not already (this is different from the transfer server we used above)
-I like to use the OpenOnDemand portal: https://o2portal.rc.hms.harvard.edu/
-From there you can click Clusters > O2 Cluster Terminal and input your O2 password
-Request an interactive session and wait a moment until your session starts
-The Research Computing Group does not want you running analyses on the login nodes
-srun --pty -p interactive -t 0-04:00 /bin/bash
-Make a directory on the O2 server to store the scripts associated with this processing run using the mkdir command (or you can use the OpenOnDemand web interface).
-mkdir -pv /n/data1/hms/microbiology/jost/lab/nolan/rna_sequencing_data/NM011/20230519_processing/scripts
-Navigate to the scripts directory for this experiment that you created above
-cd /n/data1/hms/microbiology/jost/lab/nolan/rna_sequencing_data/NM011/20230519_processing/scripts
-Upload the sample decode .csv file from above and the four scripts below that constitute the pipeline
-I tend to use the Upload button on the OpenOnDemand web interface: https://o2portal.rc.hms.harvard.edu/
-smart3seq_wrapper.sh
-barcode2fasta.py
-smart3seq_processing.sh
-smart3seq_summary.sh
-The pipeline requires genome/transcriptome annotation files for your organism of interest. The locations of these files are hardcoded in the smart3seq_wrapper.sh script. If you are running this script without access to the Jost lab O2 folder, or are analyzing non-human data, you will need to generate new annotation files and change the relevant file paths in this script.
-Submit the smart3seq_wrapper.sh script as a slurm sbatch job pointing it to the correct subfolders
-The script takes three arguments: 
--i an input directory containing the raw fastq.gz files transferred from Basespace
--o an output directory to store the (many) output files generated
--t the sample decoding .csv you made above containing the TSO barcodes
-Here I have used absolute paths to the correct folders, storing the majority of the path in a variable
-experiment_dir="/n/data1/hms/microbiology/jost/lab/nolan/rna_sequencing_data/NM011"
-sbatch ${experiment_dir}/20230519_processing/scripts/smart3seq_wrapper.sh -i ${experiment_dir}/raw_fastq -o ${experiment_dir}/20230519_processing -t ${experiment_dir}/20230519_processing/scripts/NM011_sampledecode.csv
-You can monitor the progress of the pipeline using the O2squeue command
-You should originally see a short 5 min job queued. This is the smart3seq_wrapper.sh script which submits the other scripts. If you need to update the memory requirements or requested cpu time of the pipeline, you can edit the parameters in this script using the sbatch options.
-Once the wrapper completes you will see one job in the queue for each fastq.gz file in your input directory, These jobs are all running the smart3seq_processing.sh script and will run in parallel to each other.
-There will be one additional job in the queue marked as STATE: DEPENDENCY. This is the smart3seq_summary.sh script. This job will not run until all of the smart3seq_processing.sh jobs finish. Once the smart3seq_summary.sh script finishes, the pipeline is complete. You should receive an email notification upon successful pipeline completion or if any of the jobs fail.
 
-Pipeline Output
-The pipeline will create a bunch of sub-directories within the output directory you indicated above. These sub-directories correspond to the various steps in the pipeline. The pipeline uses analysis software assembled and maintained by BioGrids and pre-installed on the O2 cluster. If you are not running this on the O2 cluster, these programs will need to be installed and the scripts updated to reflect the new install locations.
-TSO_barcodes
+### Genome/Transcriptome annotations
+The pipeline also requires three different genome/transcriptome annotation files. The location of these files are hardcoded in the `smart3seq_wrapper.sh` script (lines 60-67). If you are not using the human genome or do not have access permissions for the Jost lab directories on O2, you will need to get your own versions of these files and change the appropriate lines in the wrapper script.
+
+- `genomedir` the directory containing the STAR genome index for your organism of interest. This index should be generated beforehand using `STAR --runMode genomeGenerate --genomeDir /path/to/genomeDir --genomeFastaFiles /path/to/genome/fasta --sjdbGTFfile /path/to/annotations.gtf`. See the STAR documentation for more information.
+- `gtffile` the transcriptome annotation file for your organism of interest in *.gtf* format
+- `bedfile` the transcriptome annotation file for your organims of interest in *.bed* format
+
+
+### Detailed Instructions
+1. Make a sample demultiplexing *.csv* as outlined above
+2. Verify that the correct genome and transcriptome annotations are available and hardcoded correctly in the `smart3seq_wrapper.sh` script
+3. Login to the HMS O2 HPC cluster. I like to use the [OpenOnDemand portal](https://o2portal.rc.hms.harvard.edu/). From there you can click `Clusters` > `O2 Cluster Terminal` and input your O2 password.
+4. The HMS Research Computing Group does not want you running analyses on the login nodes so request an interactive session and wait a moment until your session starts.
+`srun --pty -p interactive -t 0-01:00 /bin/bash`
+5. Copy the scripts to your directory on the O2 server. This can be done using the `Upload` button on the OpenOnDemand web interface to upload the scripts from your local machine or using git to clone this repository from GitHub `git clone https://github.com/nolanmaier/SMART-3seq-HT`
+6. Submit the `smart3seq_wrapper.sh` script as a SLURM `sbatch` job with the appropriate inputs. For example: `sbatch SMART-3seq-HT/smart3seq_wrapper.sh -i path/to/input_fastq_dir -o path/to/output_dir -t sample_demultiplexing.csv`
+
+
+### Pipeline Monitoring
+The HMS Research Computing Group has great [guides](https://harvardmed.atlassian.net/wiki/spaces/O2/pages/1586793632/Using+Slurm+Basic) for running and monitoring jobs on O2 using SLURM.
+You can [monitor](https://harvardmed.atlassian.net/wiki/spaces/O2/pages/1586793632/Using+Slurm+Basic#Monitoring-Jobs) the progress of the pipeline using the `O2squeue` command.
+You should originally see a short 5 min job queued. This is the `smart3seq_wrapper.sh` script which submits the other scripts. If you need to update the memory requirements or requested cpu time of the pipeline, you can edit the parameters in this script using the [sbatch options](https://harvardmed.atlassian.net/wiki/spaces/O2/pages/1586793632/Using+Slurm+Basic#sbatch-options-quick-reference).
+Once the wrapper completes you will see one job in the queue for each *.fastq.gz* file in your input directory, These jobs are all running the `smart3seq_processing.sh` script and will run in parallel to each other as a [SLURM array](https://harvardmed.atlassian.net/wiki/spaces/O2/pages/1586793632/Using+Slurm+Basic#Job-Arrays).
+There will be one additional job in the queue marked as `STATE: DEPENDENCY`. This is the `smart3seq_summary.sh` script which relies on the the previous jobs using [SLURM dependencies](https://harvardmed.atlassian.net/wiki/spaces/O2/pages/1586793632/Using+Slurm+Basic#Job-Dependencies). This job will not run until all of the `smart3seq_processing.sh` jobs finish. Once the `smart3seq_summary.sh` script finishes, the pipeline is complete. You should receive an email notification upon successful pipeline completion or if any of the jobs fail.
+
+
+### Output Files
+The pipeline will create a bunch of sub-directories within the output directory you indicated above. These sub-directories correspond to the various steps in the pipeline.
+- TSO_barcodes
 Demultiplexing of the oligo-dT barcodes was done on the instrument or in Basespace above yielding one fastq.gz file per oligo-dT. The read processing pipeline will demultiplex each of these files further according to the TSO barcodes yielding one fastq.gz file per oligo-dT/TSO pair. This step requires one .fasta file per oligo-dT, containing the sequences of the TSO barcodes that correspond to that oligo-dT. The barcode2fasta.py script uses the sample decoding .csv to generate these .fasta files. The .fasta files also encode information about the TSO offset which is used in the pipeline for read trimming.
 slurmlogs
 This directory contains the log files from the bash scripts above. If the pipeline fails, this is the first place to look for explanations. Even if the pipeline completes, it is useful to scan through at least one "processing" log and one "summary" log to make sure the pipeline ran as expected.
