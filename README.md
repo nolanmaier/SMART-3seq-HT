@@ -1,11 +1,28 @@
 # SMART-3seq-HT
-Scripts to analyze SMART-3seq-HT sequencing reads
+This repository contains scripts to demultiplex and analyze SMART-3seq-HT sequencing reads.
 
-Read Processing Pipeline
-Make a sample decoding .csv file containing all samples and their associated oligo-dT and TSO barcodes. 
-The minimum columns required are: dT_Index, TSO_Index, TSO_Offset, TSO_Sequence (the column names must match exactly). Reference the example below.
-I usually include extra columns that describe the samples so that I can use this same .csv file during data analysis to decode the samples into treatments and controls. Using commas within fields in your .csv, such as the sample names ,will cause problems unless you add double quotes e.g.:	✅ "3,4-hexanediol"	❌ 3,4-hexanediol
-I have not yet found a good way to generate this .csv file programatically. So I just do it by hand. 😓
+### Quick-Start Guide (TL:DR version)
+1. clone this repo to your folder: `git clone https://github.com/nolanmaier/SMART-3seq-HT`
+2. make a sample demultiplexing *.csv* file and upload it to your folder
+3. run the wrapper script using slurm: `sbatch SMART-3seq-HT/smart3seq_wrapper.sh -i path/to/input_fastq_dir -o path/to/output_dir -t sample_demultiplexing.csv`
+
+### Requirements
+This repository is designed and tested for use on the Harvard Medical School [O2 computing cluster](https://harvardmed.atlassian.net/wiki/spaces/O2/overview). 
+
+As written, it minimally requires a [SLURM](https://slurm.schedmd.com/documentation.html) job scheduler and a [BioGrids](https://biogrids.org/) software stack available as a module.
+
+Additionally, the 
+
+### Inputs
+The pipeline takes as input three 
+
+### Sample Demultiplexing CSV
+The pipeline requires a comma separated file containing all samples and their associated oligo-dT and TSO barcodes. Reference the example in the repository. I have not yet found a good way to generate this *.csv* file programatically. So I just do it by hand. 😓
+
+The minimum columns required are: **dT_Index**, **TSO_Index**, **TSO_Offset**, **TSO_Sequence** (the column names must match exactly).
+
+I usually include extra columns (that are not parsed by the pipeline) describing the samples (i.e treatment names, treatment concentrations, etc) so that I can use this same *.csv* file during data analysis to decode the samples into treatments and controls. It is important to **NOT** use commas within fields in your *.csv* or the *.csv* will not be read correctly. If you must use commas (such as for sample names) enclose the entire field in double quotes e.g.:	✅ "3,4-hexanediol"	❌ 3,4-hexanediol.
+
 NM011_sampledecode.csv
 Login to the HMS O2 HPC cluster if have not already (this is different from the transfer server we used above)
 I like to use the OpenOnDemand portal: https://o2portal.rc.hms.harvard.edu/
