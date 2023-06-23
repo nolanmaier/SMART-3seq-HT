@@ -52,7 +52,7 @@ The pipeline also requires three different genome/transcriptome annotation files
 3. Login to the HMS O2 HPC cluster. I like to use the [OpenOnDemand portal](https://o2portal.rc.hms.harvard.edu/). From there you can access a shell by clicking `Clusters` > `O2 Cluster Terminal`
 4. Running analyses on the login nodes is frowned upon, so request an interactive session and wait a moment until your session starts
 `srun --pty -p interactive -t 0-01:00 /bin/bash`
-5. Copy the scripts to your directory on the O2 server. This can be done using the `Upload` button on the OpenOnDemand web interface to upload the scripts from your local machine or using git to clone this repository from GitHub `git clone https://github.com/nolanmaier/SMART-3seq-HT`
+5. Copy the scripts and sample demultiplexing *.csv* to your directory on the O2 server. This can be done from your local machine using the `Upload` button on the OpenOnDemand web interface. Alternatively, use git to clone this repository from GitHub `git clone https://github.com/nolanmaier/SMART-3seq-HT`
 6. Submit the `smart3seq_wrapper.sh` script as a SLURM `sbatch` job with the appropriate inputs. For example: `sbatch SMART-3seq-HT/smart3seq_wrapper.sh -i path/to/input_fastq_dir -o path/to/output_dir -t sample_demultiplexing.csv`
 
 ## Pipeline Monitoring
