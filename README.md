@@ -37,7 +37,7 @@ The minimum columns required are below (the column names must match exactly):
 - **TSO_Offset**
 - **TSO_Sequence**
 
-I usually include extra columns (that are not parsed by the pipeline) describing the samples (i.e treatment names, treatment concentrations, etc) so that I can use this same *.csv* file during data analysis to decode the samples into treatments and controls. It is important to **not use commas** within fields in your *.csv* or the *.csv* will not be read correctly. If you must use commas (such as for sample names) enclose the entire field in double quotes e.g.:	✅ "3,4-hexanediol"	❌ 3,4-hexanediol.
+I usually include optional extra columns (that are not parsed by the pipeline) describing the samples (i.e treatment names, treatment concentrations, etc) so that I can use this same *.csv* file during data analysis to decode the samples into treatments and controls. It is important to **not use commas** within fields in your *.csv* or the *.csv* will not be read correctly. If you must use commas (such as for sample names) enclose the entire field in double quotes e.g.:	✅ "3,4-hexanediol"	❌ 3,4-hexanediol.
 
 ## Genome/Transcriptome annotations
 The pipeline also requires three different genome/transcriptome annotation files. The location of these files are hardcoded in the `smart3seq_wrapper.sh` script (lines 60-67). If you are not using the human genome or do not have access permissions for the Jost lab directories on O2, you will need to get your own versions of these files and change the appropriate lines in the wrapper script.
