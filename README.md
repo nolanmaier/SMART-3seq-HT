@@ -7,6 +7,7 @@ This repository contains scripts to demultiplex and analyze SMART-3seq-HT sequen
 3. run the wrapper script using slurm: `sbatch SMART-3seq-HT/smart3seq_wrapper.sh -i path/to/input_fastq_dir -o path/to/output_dir -t sample_demultiplexing.csv`
 
 ## Repository Contents
+- `samplesheet_helper.py` python3 script that compiles multiple csv files into a samplesheet csv
 - `smart3seq_wrapper.sh` bash script that submits the rest of pipeline. Most parameters that an end-user will need to tweak (such as sbatch variables and genome locations) are in this script.
 - `smart3seq_processing.sh` bash script that demultiplexes, trims, aligns, deduplicates, and performs quality control on a input *fastq.gz* file using [Cutadapt](https://cutadapt.readthedocs.io/en/stable/index.html), [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/), [STAR](https://github.com/alexdobin/STAR), [SAMtools](http://www.htslib.org/doc/samtools.html), [UMI-tools](https://umi-tools.readthedocs.io/en/latest/), [RSEQC](https://rseqc.sourceforge.net/), and [Qualimap](http://qualimap.conesalab.org/).
 - `smart3seq_summary.sh` bash script that summarizes deduplicated *.bam* files into a counts table using [featureCounts](https://subread.sourceforge.net/featureCounts.html) and generates a quality control report using [MultiQC](https://multiqc.info/docs/). 
@@ -29,7 +30,7 @@ The wrapper script takes three named inputs:
 `-t` the sample demultiplexing *.csv* file (see below)
 
 ## Sample Demultiplexing CSV
-The pipeline requires a comma separated file containing all samples and their associated oligo-dT and TSO barcodes. Reference the example in the repository. I have not yet found a good way to generate this *.csv* file programatically. So I just do it by hand in excel 😓.
+The pipeline requires a comma separated file containing all samples and their associated oligo-dT and TSO barcodes. Reference the example in the repository. The `samplesheet_helper.py` script can be used to generate this csv file. Benchling plate layouts can be exported to csv files. These csv files can be used as input for the helper script to generate the samplesheet.
 
 The minimum columns required are below (the column names must match exactly): 
 - **dT_Index**
