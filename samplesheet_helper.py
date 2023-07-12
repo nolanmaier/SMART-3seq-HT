@@ -28,15 +28,17 @@ parser = argparse.ArgumentParser(prog=script_name,
                                  formatter_class=argparse.RawDescriptionHelpFormatter, 
                                  description=description_message,
                                  epilog=epilog_message)
-parser.add_argument("dT_Index", help="path to a csv file containing oligo-dT indices in a plate layout")
-parser.add_argument("TSO_Index", help="path to a csv file containing TSO indices in a plate layout")
+parser.add_argument("dT_Index", type=Path, help="path to a csv file containing oligo-dT indices in a plate layout")
+parser.add_argument("TSO_Index", type=Path, help="path to a csv file containing TSO indices in a plate layout")
+parser.add_argument("-o", "--outfile", type=Path, default="samplesheet.csv", help="(optional) name of the output csv file (default: 'samplesheet.csv')")
+parser.add_argument("-t", "--tso_sequences", default=None, help="(optional) name of the csv file containing custom TSO sequences and offsets (default: standard SMART-3Seq-HT sequences)")
 
 # parse the command line arguments
 args, unknownargs = parser.parse_known_args()
 print(f"starting {script_name}")
 
-# hardcode the TSO barcodes and offset into a dictionary
-TSO_decoder = {
+# hardcode the default TSO barcodes and offset into a dictionary
+default_TSO_seq = {
     1: ["GGTAGCTA", 0],
     2: ["GTATCAGC",	3],
     3: ["CCATTAAT", 0],
@@ -71,6 +73,21 @@ TSO_decoder = {
     32: ["TAACAGTC", 3]
     }
 
+def extract_custom_TSO_sequences(csv_in):
+    ''' function to extract custom TSO sequences and offsets
+        accepts a Path to a csv file with three columns
+        header must be: ["TSO_Index", "TSO_Sequence", "TSO_Offset"]
+        values should be: [int, str, int]
+        generates a dictionary with TSO_Index as keys
+        and TSO_Sequence, TSO_Offset in a list as the values'''
+    TSO_dict = {}
+    assert csv_in.is_file(), f"arguments must be paths to valid files, '{csv_in}' does not exist"
+    with open(csv_in, "r") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            TSO_dict[int(row["TSO_Index"])] = [str(row["TSO_Sequence"]), int(row["TSO_Offset"])]
+    return TSO_dict
+
 def csv_to_wells(csv_in):
     ''' function to read a plate layout csv
         generates a dictionary with well labels as keys (e.g. 'A1') 
@@ -78,6 +95,7 @@ def csv_to_wells(csv_in):
     well_count = 0
     well_dict = {}
     # open and read the csv
+    assert csv_in.is_file(), f"arguments must be paths to valid files, '{csv_in}' does not exist"
     with open(csv_in, "r") as csvfile:
         reader = csv.DictReader(csvfile)
         # iterate through each row of the csv
@@ -96,13 +114,13 @@ def csv_to_wells(csv_in):
 
 # convert the command line arguments into file paths
 csv_paths = {}
-csv_paths["dT_Index"] = Path(args.dT_Index)
-csv_paths["TSO_Index"] = Path(args.TSO_Index)
+csv_paths["dT_Index"] = args.dT_Index
+csv_paths["TSO_Index"] = args.TSO_Index
 
 # check that the extra arguments don't use a restricted label
 for argument in unknownargs:
-    assert argument.partition("=")[0] not in {"dT_Index", "TSO_Index"}, \
-        f"optional arguments cannot be labeled 'dT_Index' or 'TSO_Index', received '{argument}'"
+    assert argument.partition("=")[0] not in args, \
+        f"received invalid optional argument '{argument}', optional arguments cannot have a restricted name in {list(vars(args).keys())}'"
     # split the extra arguments into a label and a path
     csv_paths[argument.partition("=")[0]] = Path(argument.partition("=")[2])
 
@@ -112,8 +130,6 @@ counts = {}
 data = {}
 # iterate through each of the csv files
 for key, filepath in csv_paths.items():
-    # check that all paths map to actual files
-    assert filepath.is_file(), f"arguments must be paths to valid files, '{filepath}' does not exist"
     # read each csv and append the appropriate data to the storage dict
     print(f"reading '{key}' from '{filepath}'")
     counts[key], data[key] = csv_to_wells(filepath)
@@ -133,6 +149,15 @@ for key, value in data.items():
         assert well in data['dT_Index'].keys(), \
             f"all files should contain sample information for the same wells, well {well} is in '{key}' but not in 'dT_Index"
 print(f"{len(data['dT_Index'])} samples detected")
+
+# if the user want custom TSO sequences, extract the sequences from the csv
+if args.tso_sequences:
+    print(f"using custom TSO sequences and offsets provided by the user in {args.tso_sequences}")
+    TSO_decoder = extract_custom_TSO_seq(Path(args.tso_sequences))
+# if the user want to use the default TSO sequences, use the hardcoded dictionary
+else:
+    print("using default TSO sequences and offsets")
+    TSO_decoder = default_TSO_seq
 
 # initialize a dictionary to store the cleaned, concatenated data in a format for export
 outdict = {}
@@ -177,9 +202,8 @@ for key in set(data.keys()) - {'dT_Index', 'TSO_Index'}:
             outdict[well][key] = value
 
 # write the output csv
-outfile = "samplesheet.csv"
-print(f"writing samples to '{outfile}'")
-with open(outfile, 'w') as csvfile:
+print(f"writing samples to '{args.outfile}'")
+with open(args.outfile, 'w') as csvfile:
     fieldnames = list(outdict[next(iter(outdict))].keys())
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
