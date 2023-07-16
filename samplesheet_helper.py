@@ -21,6 +21,7 @@ optional positional arguments:
                                 e.g. "trx_name=treatments.csv"
                                 multi-line entries will be split into multiple columns
 '''
+
 script_name = "samplesheet_helper.py"
 
 # assert the correct number and format of command line arguments
@@ -36,6 +37,55 @@ parser.add_argument("-t", "--tso_sequences", default=None, help="(optional) name
 # parse the command line arguments
 args, unknownargs = parser.parse_known_args()
 print(f"starting {script_name}")
+
+def clean_int(string_name, string_value):
+    '''function to strip non-numeric characters from a string and return just the numeric digits as an integer'''
+    digits_only = ''.join(c for c in string_value if c.isdigit())
+    assert digits_only != '', f"{string_name} must contain numbers, received '{string_value}'"
+    return int(digits_only)
+
+def extract_custom_TSO_seq(csv_in):
+    ''' function to extract custom TSO sequences and offsets
+        accepts a Path to a csv file with three columns
+        header must be: ["TSO_Index", "TSO_Sequence", "TSO_Offset"]
+        values should be: [int, str, int]
+        generates a dictionary with TSO_Index as keys
+        and TSO_Sequence, TSO_Offset in a list as the values'''
+    required_columns = ['TSO_Index', 'TSO_Sequence', 'TSO_Offset']
+    TSO_dict = {}
+    assert csv_in.is_file(), f"arguments must be paths to valid files, '{csv_in}' does not exist"
+    with open(csv_in, "r", encoding='utf-8-sig') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            assert all(x in row.keys() for x in required_columns), \
+                f"csv containing custom TSO sequences must have the following columns: {required_columns}"
+            TSO_dict[clean_int('TSO_Index', row["TSO_Index"])] = [str(row["TSO_Sequence"]), clean_int('TSO_Offset', row["TSO_Offset"])]
+    return TSO_dict
+
+def csv_to_wells(csv_in):
+    ''' function to read a plate layout csv
+        accepts a Path to a csv file
+        generates a dictionary with well labels as keys (e.g. 'A1') 
+        and cell entries as values '''
+    well_count = 0
+    well_dict = {}
+    # open and read the csv
+    assert csv_in.is_file(), f"arguments must be paths to valid files, '{csv_in}' does not exist"
+    with open(csv_in, "r") as csvfile:
+        reader = csv.DictReader(csvfile)
+        # iterate through each row of the csv
+        for row in reader:
+            # extract the row label (e.g. 'A')
+            prefix = row['']
+            # iterate over each well in the row
+            for column in row:
+                # skip any column that does not have a column label (the first column of the csv)
+                if column:
+                    well_count += 1
+                    # skip any well that is empty
+                    if row[column]:
+                        well_dict[prefix+column] = row[column]
+    return well_count, well_dict
 
 # hardcode the default TSO barcodes and offset into a dictionary
 default_TSO_seq = {
@@ -73,46 +123,17 @@ default_TSO_seq = {
     32: ["TAACAGTC", 3]
     }
 
-def extract_custom_TSO_sequences(csv_in):
-    ''' function to extract custom TSO sequences and offsets
-        accepts a Path to a csv file with three columns
-        header must be: ["TSO_Index", "TSO_Sequence", "TSO_Offset"]
-        values should be: [int, str, int]
-        generates a dictionary with TSO_Index as keys
-        and TSO_Sequence, TSO_Offset in a list as the values'''
-    TSO_dict = {}
-    assert csv_in.is_file(), f"arguments must be paths to valid files, '{csv_in}' does not exist"
-    with open(csv_in, "r") as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            TSO_dict[int(row["TSO_Index"])] = [str(row["TSO_Sequence"]), int(row["TSO_Offset"])]
-    return TSO_dict
+# if the user want custom TSO sequences, extract the sequences from the csv
+if args.tso_sequences:
+    print(f"extracting custom TSO sequences and offsets from {args.tso_sequences}")
+    TSO_decoder = extract_custom_TSO_seq(Path(args.tso_sequences))
+# if the user want to use the default TSO sequences, use the hardcoded dictionary
+else:
+    print("using default TSO sequences and offsets")
+    TSO_decoder = default_TSO_seq
+print(f"{len(TSO_decoder)} TSO sequences found")
 
-def csv_to_wells(csv_in):
-    ''' function to read a plate layout csv
-        generates a dictionary with well labels as keys (e.g. 'A1') 
-        and cell entries as values '''
-    well_count = 0
-    well_dict = {}
-    # open and read the csv
-    assert csv_in.is_file(), f"arguments must be paths to valid files, '{csv_in}' does not exist"
-    with open(csv_in, "r") as csvfile:
-        reader = csv.DictReader(csvfile)
-        # iterate through each row of the csv
-        for row in reader:
-            # extract the row label (e.g. 'A')
-            prefix = row['']
-            # iterate over each well in the row
-            for column in row:
-                # skip any column that does not have a column label (the first column of the csv)
-                if column:
-                    well_count += 1
-                    # skip any well that is empty
-                    if row[column]:
-                        well_dict[prefix+column] = row[column]
-    return well_count, well_dict
-
-# convert the command line arguments into file paths
+# store the input csv files from the command line into a new dictionary
 csv_paths = {}
 csv_paths["dT_Index"] = args.dT_Index
 csv_paths["TSO_Index"] = args.TSO_Index
@@ -121,7 +142,7 @@ csv_paths["TSO_Index"] = args.TSO_Index
 for argument in unknownargs:
     assert argument.partition("=")[0] not in args, \
         f"received invalid optional argument '{argument}', optional arguments cannot have a restricted name in {list(vars(args).keys())}'"
-    # split the extra arguments into a label and a path
+    # split the extra arguments into a label and a path and store in the dictionary
     csv_paths[argument.partition("=")[0]] = Path(argument.partition("=")[2])
 
 # initialize a dict to store the number of wells in each csv
@@ -136,7 +157,8 @@ for key, filepath in csv_paths.items():
 
 # check the plate format of each csv matches an expected layout and each other
 for key, value in counts.items():
-    assert value in [96, 384], f"96- or 384-well plate format expected, read {value} wells in '{key}'"
+    assert value in [96, 384], \
+        f"96- or 384-well plate format expected, read {value} wells in '{key}'"
     assert value == counts['dT_Index'], \
         f"all files should contain the same plate format, 'dT_Index' has {counts['dT_Index']}-well format but '{key}' has {value}-well format"
 print(f"{counts['dT_Index']}-well plate format detected")
@@ -150,15 +172,6 @@ for key, value in data.items():
             f"all files should contain sample information for the same wells, well {well} is in '{key}' but not in 'dT_Index"
 print(f"{len(data['dT_Index'])} samples detected")
 
-# if the user want custom TSO sequences, extract the sequences from the csv
-if args.tso_sequences:
-    print(f"using custom TSO sequences and offsets provided by the user in {args.tso_sequences}")
-    TSO_decoder = extract_custom_TSO_seq(Path(args.tso_sequences))
-# if the user want to use the default TSO sequences, use the hardcoded dictionary
-else:
-    print("using default TSO sequences and offsets")
-    TSO_decoder = default_TSO_seq
-
 # initialize a dictionary to store the cleaned, concatenated data in a format for export
 outdict = {}
 
@@ -167,12 +180,12 @@ for well, value in data['dT_Index'].items():
     outdict[well] = {}
     outdict[well]['well'] = well
     # add the dT_Index, making sure to clean up the entry to only the numbers
-    clean_index = int(''.join(c for c in value if c.isdigit()))
+    clean_index = clean_int('dT_Index', value)
     outdict[well]['dT_Index'] = clean_index
 
 for well, value in data['TSO_Index'].items():
     # add the TSO_Index, making sure to clean up the entry to only the numbers and that the index is in the barcode list
-    clean_index = int(''.join(c for c in value if c.isdigit()))
+    clean_index = clean_int('TSO_Index', value)
     assert clean_index in TSO_decoder.keys(), \
         f"TSO_Index must be in hardcoded barcode list, could not find {value} or {clean_index} from well {well}"
     outdict[well]['TSO_Index'] = clean_index
@@ -210,3 +223,5 @@ with open(args.outfile, 'w') as csvfile:
     for entry in outdict.values():
         writer.writerow(entry)
 print("DONE")
+
+
