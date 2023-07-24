@@ -72,10 +72,10 @@ bedfile='/n/data1/hms/microbiology/jost/lab/nolan/test/gencode.v38.annotation2.b
 # they should be placed in the same directory as this script
 script_path=$(dirname $(realpath $(scontrol show job "${SLURM_JOBID}" | awk -F= '/Command=/{print $2}'| awk '{print $1}')))
 
-# load the biogrids module
-module load biogrids/latest
-# explicitly set the versions of all tools used
-# these modules and exported variables will be inherited by the downstream scripts
+# source the biogrids environment
+# and explicitly set the versions of all tools used
+# this environment will be inherited by the downstream scripts
+source /programs/biogrids.shrc
 export CUTADAPT_X=4.4
 export FASTQC_X=0.11.9
 export STAR_X=2.7.9a
