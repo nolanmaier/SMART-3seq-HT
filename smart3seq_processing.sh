@@ -49,12 +49,6 @@ echo
 
 cores_avail="${SLURM_CPUS_PER_TASK}"
 
-# load biogrids module to access analysis software
-# tools used: fqtools, cutadapt, fastqc, STAR, samtools, umi_tools, rseqc, qualimap
-module load biogrids/latest
-# harcode the location of the RSeQC scripts from the biogrids install
-rseqc_scripts='/programs/x86_64-linux/rseqc/4.0.0/bin.capsules'
-echo
 
 # print versions of software used for documentation
 echo 'Programs used:'
@@ -63,7 +57,7 @@ fastqc -v
 echo "STAR version: $(STAR --version)"
 samtools --version | head -n 1
 umi_tools -v
-echo "RSEQC version: $(${rseqc_scripts}/bam_stat.py --version) $(${rseqc_scripts}/infer_experiment.py --version) $(${rseqc_scripts}/read_distribution.py --version)"
+echo "RSEQC version: $(bam_stat.py --version) $(infer_experiment.py --version) $(read_distribution.py --version)"
 qualimap --help 2> '/dev/null' | sed -n '/^QualiMap/p'
 echo
 
@@ -334,10 +328,10 @@ mkdir -p "${outdir}/rseqc"
 find "${outdir}/deduplicated_bam" -maxdepth 1 -type f -name "${raw_prefix}_*.dedup.bam" -print0 | \
 	xargs -0 -I '{}' -P "${cores_avail}" bash -c \
 	'echo "Running RSEQC scripts on: "$(basename $1)""; \
-	""$2"/bam_stat.py" -i "$1" > ""$4"/rseqc/"$(basename $1 .bam)".bamStat.txt" 2> /dev/null; \
-	""$2"/infer_experiment.py" -i "$1" -r "$3" > ""$4"/rseqc/"$(basename $1 .bam)".inferExperiment.txt" 2> /dev/null; \
-	""$2"/read_distribution.py" -i "$1" -r "$3" > ""$4"/rseqc/"$(basename $1 .bam)".readDistribution.txt" 2> /dev/null' \
-	-- '{}' "${rseqc_scripts}" "${bedfile}" "${outdir}" || true
+	"bam_stat.py" -i "$1" > ""$3"/rseqc/"$(basename $1 .bam)".bamStat.txt" 2> /dev/null; \
+	"infer_experiment.py" -i "$1" -r "$2" > ""$3"/rseqc/"$(basename $1 .bam)".inferExperiment.txt" 2> /dev/null; \
+	"read_distribution.py" -i "$1" -r "$2" > ""$3"/rseqc/"$(basename $1 .bam)".readDistribution.txt" 2> /dev/null' \
+	-- '{}' "${bedfile}" "${outdir}" || true
 echo 'DONE'
 echo
 

@@ -44,11 +44,6 @@ echo
 
 cores_avail="${SLURM_CPUS_PER_TASK}"
 
-# load biogrids module to access analysis software
-# tools used: featurecounts, multiQC
-module load biogrids/latest
-echo
-
 # print versions of tools used for documentation
 echo 'Programs used:'
 featureCounts -v

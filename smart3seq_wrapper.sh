@@ -73,9 +73,18 @@ bedfile='/n/data1/hms/microbiology/jost/lab/nolan/test/gencode.v38.annotation2.b
 script_path=$(dirname $(realpath $(scontrol show job "${SLURM_JOBID}" | awk -F= '/Command=/{print $2}'| awk '{print $1}')))
 
 # load the biogrids module
-# this script only needs a python3 install so biogrids is not truly necessary
-# but biogrids does come with python installed
 module load biogrids/latest
+# explicitly set the versions of all tools used
+# these modules and exported variables will be inherited by the downstream scripts
+export CUTADAPT_X=4.4
+export FASTQC_X=0.11.9
+export STAR_X=2.7.9a
+export SAMTOOLS_X=1.17
+export UMITOOLS_X=1.1.2
+export RSEQC_X=4.0.0
+export QUALIMAP_X=2.2.1
+export SUBREAD_X=2.0.3
+export MULTIQC_X=1.14
 echo
 
 #################################################
@@ -94,6 +103,7 @@ echo -e "Using scripts located in: \t ${script_path}"
 echo
 
 # use the python script to convert the .csv sample sheet into .fasta files of TSO barcodes
+# this should use the biogrids install of python loaded above, but any standard python3 install will work
 echo 'generating fasta files for TSO barcodes'
 echo -e "using python installed at: \t $(which python3)"
 echo "$(python3 --version)"
